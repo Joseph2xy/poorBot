@@ -1,0 +1,20 @@
+{
+  "name": "game-price-discord-notifier",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "node --env-file-if-exists=.env bot.ts",
+    "typecheck": "tsc --noEmit",
+    "test": "npm run typecheck && node --test *.test.ts"
+  },
+  "engines": {
+    "node": ">=24.12"
+  },
+  "devDependencies": {
+    "@types/node": "24.19.0",
+    "typescript": "7.0.2"
+  },
+  "dependencies": {
+    "discord.js": "14.27.0"
+  }
+}

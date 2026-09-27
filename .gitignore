@@ -1,0 +1,11 @@
+.env
+.env.*
+!.env.example
+tracker.json
+games.json
+state.json
+backups/
+*.log
+*.tmp
+.tracker.lock
+node_modules/
