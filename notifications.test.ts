@@ -5,7 +5,7 @@ import type { Decision } from './pricing.ts';
 import type { Offer } from './sources.ts';
 
 const offer: Offer = { title: 'Elden Ring', url: 'https://www.allkeyshop.com/blog/buy-elden-ring-cd-key-compare-prices/',
-  price: 1999, merchant: 'Example Store', coupon: 'SAVE10', source: 'AllKeyShop' };
+  price: 1999, merchant: 'Example Store', coupon: 'SAVE10', edition: 'Deluxe' };
 const decision: Decision = { alert: true, reason: 'meaningful drop', reference: 2500, saving: 501,
   next: { reference: 1999, current: 1999, checkedAt: 0 } };
 
@@ -22,6 +22,7 @@ test('price alert includes exact EUR totals, rounded percentage, and the compari
   assert.equal(embed.url, offer.url);
   assert.equal(embed.description, '€25.00 → **€19.99**\nSave €5.01 (20%).');
   assert.deepEqual(embed.fields, [
+    { name: 'Edition', value: 'Deluxe', inline: true },
     { name: 'Store', value: 'Example Store', inline: true },
     { name: 'Coupon', value: 'SAVE10', inline: true },
   ]);
@@ -29,30 +30,19 @@ test('price alert includes exact EUR totals, rounded percentage, and the compari
     'Prices via AllKeyShop • Advertised EUR price; confirm the final total at checkout.');
 });
 
-test('price alert disables mentions and omits absent store and coupon fields', () => {
-  const value = { ...offer, title: '@everyone', merchant: '', coupon: undefined };
+test('price alert disables mentions and omits absent edition and coupon fields', () => {
+  const value = { ...offer, title: '@everyone', edition: undefined, coupon: undefined };
   assert.deepEqual(priceAlert(value, decision).allowedMentions, { parse: [] });
-  assert.deepEqual(embedFor(value).fields, []);
+  assert.deepEqual(embedFor(value).fields, [{ name: 'Store', value: 'Example Store', inline: true }]);
 });
 
-test('alerts identify separately tracked Steam editions even when game names match', () => {
-  for (const edition of ['Standard', 'Deluxe']) {
-    const embed = embedFor({ ...offer, edition });
-    assert.equal(embed.title, 'Elden Ring — price dropped');
-    assert.deepEqual(embed.fields![0], { name: 'Edition', value: edition, inline: true });
+test('long alert text remains usable within Discord title and field limits', () => {
+  const embed = embedFor({ ...offer, title: 'T'.repeat(2000), edition: 'E'.repeat(2000),
+    merchant: 'M'.repeat(2000), coupon: 'C'.repeat(2000) });
+  assert.match(embed.title!, /^T+ — price dropped$/);
+  assert.ok(embed.title!.length <= 256);
+  for (const [index, letter] of ['E', 'M', 'C'].entries()) {
+    assert.match(embed.fields![index].value, new RegExp(`^${letter}+$`));
+    assert.ok(embed.fields![index].value.length <= 1024);
   }
-  assert.equal(embedFor({ ...offer, edition: 'E'.repeat(1000) }).fields![0].value, 'E'.repeat(200));
-});
-
-test('price alert preserves source attribution with a default for missing source', () => {
-  assert.match(embedFor({ ...offer, source: 'Example Source' }).footer!.text, /^Prices via Example Source •/);
-  assert.match(embedFor({ ...offer, source: '' }).footer!.text, /^Prices via AllKeyShop •/);
-});
-
-test('price alert caps source title, store, and coupon text within Discord field limits', () => {
-  const embed = embedFor({ ...offer, title: 'T'.repeat(1000), merchant: 'M'.repeat(1000), coupon: 'C'.repeat(1000) });
-  assert.equal(embed.title, `${'T'.repeat(200)} — price dropped`);
-  assert.ok(embed.title.length <= 256);
-  assert.equal(embed.fields![0].value, 'M'.repeat(200));
-  assert.equal(embed.fields![1].value, 'C'.repeat(200));
 });

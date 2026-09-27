@@ -8,7 +8,7 @@ import {
 import { openTracker, type Tracker } from './tracker.ts';
 import { priceAlert } from './notifications.ts';
 
-export const gamesCommand = new SlashCommandBuilder()
+const gamesCommand = new SlashCommandBuilder()
   .setName('games')
   .setDescription('Manage game price alerts')
   .setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild)

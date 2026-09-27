@@ -10,7 +10,7 @@ import type { Offer } from './sources.ts';
 const url = 'https://www.allkeyshop.com/blog/buy-elden-ring-cd-key-compare-prices/';
 const secondUrl = 'https://www.allkeyshop.com/blog/buy-hades-cd-key-compare-prices/';
 const wowUrl = 'https://www.allkeyshop.com/blog/prepaids/buy-world-of-warcraft-subscription-60-day-france-compare-prices/i-co/';
-const offer = (price: number): Offer => ({ title: 'Elden Ring', url, price, source: 'AllKeyShop', merchant: 'Store' });
+const offer = (price: number): Offer => ({ title: 'Elden Ring', url, price, merchant: 'Store' });
 const log = () => {};
 
 async function setup(t: TestContext, options: Partial<Parameters<typeof openTracker>[0]> = {}) {

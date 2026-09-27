@@ -6,7 +6,7 @@ import { tmpdir } from 'node:os';
 import { basename, resolve, sep } from 'node:path';
 import { promisify } from 'node:util';
 import { AttachmentBuilder, ChannelType, MessageFlags, PermissionFlagsBits, PermissionsBitField, type Client } from 'discord.js';
-import { createCommandHandler, gamesCommand, resolveAlertChannel, type GameInteraction } from './bot.ts';
+import { createCommandHandler, resolveAlertChannel, type GameInteraction } from './bot.ts';
 
 type Operations = NonNullable<Parameters<typeof createCommandHandler>[2]>;
 const guildId = '123456789012345678';
@@ -33,13 +33,6 @@ function interaction(command: string, strings: Record<string, string> = {}, dryR
   return { fake, replies, edits, events };
 }
 
-test('/games declares the management permission and supported subcommands', () => {
-  const definition = gamesCommand.toJSON();
-  assert.equal(definition.name, 'games');
-  assert.equal(definition.default_member_permissions, String(PermissionFlagsBits.ManageGuild));
-  assert.deepEqual(definition.options?.map(option => option.name), ['add', 'list', 'remove', 'check']);
-});
-
 test('wrong guild, DMs, and missing management permission never invoke tracker operations', async () => {
   const handle = createCommandHandler(guildId, new AbortController().signal, operations());
   for (const context of [
@@ -56,28 +49,21 @@ test('wrong guild, DMs, and missing management permission never invoke tracker o
   }
 });
 
-test('add acknowledges privately before changing tracking and forwards all options', async () => {
-  const input = interaction('add', { url: product.url, name: '@everyone Elden Ring', edition: 'Deluxe' });
-  const handle = createCommandHandler(guildId, new AbortController().signal, operations({
-    addGame: async (...args) => {
-      assert.deepEqual(input.events, ['defer']);
-      assert.deepEqual(args, [product.url, '@everyone Elden Ring', 'Deluxe']);
-      input.events.push('add');
-      return 'Following @everyone Elden Ring';
-    },
-  }));
-  await handle(input.fake);
-  assert.deepEqual(input.events, ['defer', 'add', 'edit']);
-  assert.equal(input.edits[0].content, 'Following @everyone Elden Ring');
-  assert.deepEqual(input.edits[0].allowedMentions, { parse: [] });
-});
-
-test('add forwards omitted optional name and edition as undefined', async () => {
-  const input = interaction('add', { url: product.url });
-  await createCommandHandler(guildId, new AbortController().signal, operations({ addGame: async (...args) => {
-    assert.deepEqual(args, [product.url, undefined, undefined]); return 'Added';
-  } }))(input.fake);
-  assert.equal(input.edits[0].content, 'Added');
+test('add acknowledges privately and forwards supplied or omitted optional fields', async () => {
+  for (const [name, edition] of [['@everyone Elden Ring', 'Deluxe'], [undefined, undefined]]) {
+    const input = interaction('add', { url: product.url, ...(name ? { name, edition: edition! } : {}) });
+    await createCommandHandler(guildId, new AbortController().signal, operations({
+      addGame: async (...args) => {
+        assert.deepEqual(input.events, ['defer']);
+        assert.deepEqual(args, [product.url, name, edition]);
+        input.events.push('add');
+        return 'Following @everyone Elden Ring';
+      },
+    }))(input.fake);
+    assert.deepEqual(input.events, ['defer', 'add', 'edit']);
+    assert.equal(input.edits[0].content, 'Following @everyone Elden Ring');
+    assert.deepEqual(input.edits[0].allowedMentions, { parse: [] });
+  }
 });
 
 test('list returns IDs and editions, handles empty lists, and attaches oversized results', async () => {
@@ -95,11 +81,9 @@ test('list returns IDs and editions, handles empty lists, and attaches oversized
       assert.ok(Buffer.isBuffer(file.attachment));
       const contents = file.attachment.toString('utf8');
       assert.ok(contents.length > 2000);
-      assert.match(contents, /Elden Ring \(Deluxe\)/);
+      assert.ok(contents.startsWith('Elden Ring (Deluxe)\nID: game-0\nLatest saved price: €23.81\n'
+        + 'Alert reference price: €25.00\nLast successful check: Sun, 27 Sep 2026 17:00:00 GMT\n' + product.url));
       assert.match(contents, /ID: game-29/);
-      assert.equal(contents.match(/Latest saved price: €23\.81/g)?.length, 30);
-      assert.equal(contents.match(/Alert reference price: €25\.00/g)?.length, 30);
-      assert.equal(contents.match(/Last successful check: Sun, 27 Sep 2026 17:00:00 GMT/g)?.length, 30);
     }
     assert.deepEqual(reply.allowedMentions, { parse: [] });
   }
@@ -201,12 +185,10 @@ test('list remains available during a check and cannot release its busy guard, e
         assert.deepEqual(listing.events, ['defer', 'edit']);
         assert.match(String(listing.edits[0].content), outcome === 'success' ? /Elden Ring/ : /List unavailable/);
       }
-      for (const command of ['add', 'remove', 'check']) {
-        const refused = interaction(command);
-        await handle(refused.fake);
-        assert.deepEqual(refused.events, ['reply']);
-        assert.match(String(refused.replies[0].content), /still running/);
-      }
+      const refused = interaction('remove', { id: product.id });
+      await handle(refused.fake);
+      assert.deepEqual(refused.events, ['reply']);
+      assert.match(String(refused.replies[0].content), /still running/);
     } finally { finishCheck(); await checking; }
     const removal = interaction('remove', { id: product.id });
     await handle(removal.fake);

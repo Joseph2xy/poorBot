@@ -1,84 +1,72 @@
 # Game price alerts for Discord
 
-A small Discord bot that follows AllKeyShop products, checks their lowest suitable advertised EUR prices, and posts meaningful price drops to one channel. Manage games with slash commands; the same bot runs the hourly checks and sends alerts.
+One Discord bot follows AllKeyShop products, checks suitable advertised EUR prices hourly, and sends qualifying price drops to one channel.
 
 ## Setup
 
-Requires **Node.js 24.12 or newer**. Run `npm ci` in this folder. TypeScript runs directly; there is no build step.
+Requires **Node.js 24.12 or newer**. Run `npm ci`. TypeScript runs directly; there is no build step.
 
 1. Copy `.env.example` to `.env` if it does not already exist.
-2. Create an application in the [Discord Developer Portal](https://discord.com/developers/applications). Under **Bot → Reset Token**, obtain the bot token and put it after `DISCORD_BOT_TOKEN=` in `.env`. Keep it private. See [Discord's setup guide](https://github.com/discord/discord-api-docs/blob/main/developers/quick-start/getting-started.mdx).
-3. Under **OAuth2 → URL Generator**, select `bot` and `applications.commands`. Select **View Channels**, **Send Messages**, and **Embed Links**, then open the generated link to invite the bot to your server. Administrator and privileged gateway intents are unnecessary. Ensure channel overrides also allow these permissions in the destination channel. See the [discord.js invitation guide](https://github.com/discordjs/guide/blob/main/guide/preparations/adding-your-bot-to-servers.md).
-4. In Discord, enable **User Settings → Advanced → Developer Mode**. Right-click the text channel for alerts and choose **Copy Channel ID**. Put that value after `DISCORD_CHANNEL_ID=` in `.env`. The bot derives the server from this channel; no separate server ID or webhook is needed. See [Discord's ID instructions](https://support.discord.com/hc/en-us/articles/206346498-Where-can-I-find-my-User-Server-Message-ID).
-5. Run `npm start`. Wait for `/games commands are ready`. The bot starts checking immediately, then waits the configured interval between checks.
+2. Create an application in the [Discord Developer Portal](https://discord.com/developers/applications). Obtain its bot token and set `DISCORD_BOT_TOKEN` in `.env`.
+3. Invite the bot with the `bot` and `applications.commands` scopes and **View Channels**, **Send Messages**, and **Embed Links** permissions. Administrator and privileged intents are unnecessary.
+4. Enable Discord Developer Mode, copy the alert channel's ID, and set `DISCORD_CHANNEL_ID` in `.env`. The bot derives the server from this channel. Channel overrides must also permit viewing, sending, and embeds.
+5. Run `npm start`. Wait for `/games commands are ready`. Checking starts immediately, then waits the configured interval between runs.
 
-Run **one bot process** for the data directory. Keep the process and computer running for commands and alerts to work. Hosting is not configured. Ctrl+C requests a clean shutdown.
+Run **one bot process** per data directory. Keep the computer and process running; hosting is not configured. Ctrl+C requests a clean shutdown.
 
-## Follow games
+## Commands
 
-Commands work in the destination channel's server for members with **Manage Server** permission. The bot verifies permissions on every invocation and rejects DMs. Command replies are private to the caller; qualifying price alerts go to the configured channel.
+Commands work in the configured channel's server for members with **Manage Server** permission. Replies are private; price alerts go to the configured channel.
 
 | Command | Result |
 | --- | --- |
-| `/games add url:<URL> name:<optional name> edition:<optional edition>` | Follows a product. Adding it does not contact the price source. |
-| `/games list` | Lists products, IDs, latest saved prices, alert reference prices, and last successful checks. |
-| `/games remove id:<ID>` | Removes the product and its saved price history. |
-| `/games check` | Checks now, saves observations, and sends qualifying alerts. |
-| `/games check dry-run:true` | Previews offers without saving or sending alerts. |
+| `/games add url:<URL> name:<optional> edition:<optional>` | Follow a product without fetching prices. |
+| `/games list` | Show products, IDs, saved prices, alert reference prices, and last successful checks. |
+| `/games remove id:<ID>` | Remove the product and its saved price state. |
+| `/games check` | Check prices, save observations, and send qualifying alerts. |
+| `/games check dry-run:true` | Preview without saving or sending. |
 
-Use English AllKeyShop comparison-page links, such as `https://www.allkeyshop.com/blog/buy-elden-ring-cd-key-compare-prices/`. Steam store URLs and individual seller links are not supported. Steam defaults to Standard edition; use the source's edition label, such as Deluxe, to follow another edition. Different editions are tracked separately. Supported WoW game-time links are recognized automatically.
+Use English AllKeyShop comparison URLs, such as `https://www.allkeyshop.com/blog/buy-elden-ring-cd-key-compare-prices/`. Steam defaults to Standard edition; specify the page's edition label, such as Deluxe, to track another edition separately. WoW game-time prepaid links are recognized automatically. Other prepaid products, Steam store URLs, and individual seller links are unsupported.
 
-The first successful regular check establishes a baseline quietly. Use a dry run to verify eligible offers after adding a product. Add, remove, and check run one at a time; `/games list` remains available while they run and shows the last saved product list. Steam alerts and check results identify the tracked edition. Long results arrive as a text attachment.
+The first successful regular check establishes a baseline quietly. Products without one show **Awaiting first successful check**. `/games list` reads saved observations, with check times in GMT (UTC); failed checks and previews do not update them. The alert reference price can differ from the latest saved price.
 
-`/games list` reads saved observations without requesting new prices. Products without a baseline show **Awaiting first successful check**. Check times are shown in GMT (UTC), including in text attachments. The alert reference price is the price used to decide whether a reduction qualifies; it can differ from the latest saved price. Failed checks and dry runs do not update this status, so an old check time means no newer successful check has been saved.
+Add, remove, and check run one at a time. Lists remain available during other commands. Steam results and alerts identify the edition. Long replies arrive as text attachments.
 
-## How alerts work
+## Prices and alerts
 
-- A drop must meet **both 10% and €2** by default. Small reductions accumulate against the initial or last alerted price. An unchanged deal stays quiet; another qualifying reduction can alert immediately.
-- Returning sales can alert again after higher prices have been observed over **48 hours**. Short spikes do not reset the reference price. A gap longer than two check intervals restarts that recovery period, so downtime does not count as evidence of higher prices.
-- Prices come from individual embedded offers, using AllKeyShop's listed card-payment total with reported fees and coupon discount. Cashback discounts are excluded. Confirm the final total at the store; the bot does not automate checkout.
-- Steam offers must be in-stock keys for listed global/EU/Europe/EMEA/France regions and the chosen edition. Accounts, gifts, unknown restrictions, and other platforms are excluded. WoW game-time offers must be marked compatible with France.
-- A source or delivery failure preserves the previous baseline. The next check can retry an alert if the price still qualifies; expired deals are not queued. Successful observations are saved per product.
+- A drop must meet **both 10% and €2** by default. Small reductions accumulate against the initial or last alerted price; unchanged deals stay quiet.
+- Returning sales can alert after higher prices have been observed over **48 hours**. Short spikes do not reset the reference. A gap longer than two check intervals restarts that recovery period, so downtime does not count as evidence.
+- Prices use individual offers' listed card-payment totals, including reported fees and coupon discounts. Cashback is excluded. Confirm the final total at the store.
+- Steam offers must be in-stock keys for the chosen edition and listed global/EU/Europe/EMEA/France regions. Accounts, gifts, unknown restrictions, and other platforms are excluded. WoW game-time offers must be compatible with France.
+- Source or delivery failures preserve the previous state. A later check retries if the price still qualifies; expired deals are not queued. Successful progress is saved per product.
 
-## Settings and storage
+## Settings and data
 
-`tracker.json` contains settings, followed products, and their price state together. It uses this shape; the empty game list below is illustrative, so do not overwrite an existing store with it:
+`tracker.json` is the only active store. It contains settings, followed products, and each product's current/reference price and recovery timestamps, rather than a chronological price log. Stop the bot before editing settings; manage products through commands so IDs and saved state stay consistent.
 
-```json
-{
-  "version": 1,
-  "settings": {
-    "minimumDropPercent": 10,
-    "minimumDropEuro": 2,
-    "checkIntervalMinutes": 60,
-    "resetAfterHours": 48
-  },
-  "games": []
-}
-```
+| Setting | Default | Meaning |
+| --- | --- | --- |
+| `minimumDropPercent` | `10` | Minimum percentage saving. |
+| `minimumDropEuro` | `2` | Minimum EUR saving; both thresholds must pass. |
+| `checkIntervalMinutes` | `60` | Wait between checks; range 1–35,791 minutes. |
+| `resetAfterHours` | `48` | Required duration of sustained higher observations. |
 
-Stop the bot before changing settings. Check intervals must be between 1 and 35,791 minutes. Manage products through `/games` so their identity and saved state stay consistent. Back up `tracker.json` and keep a private backup of `.env`. To use another existing local data directory, set `TRACKER_DATA_DIR` and place `tracker.json` there.
+Back up `tracker.json` and keep a private backup of `.env`. `TRACKER_DATA_DIR` selects another data directory. Retained files under `backups/` are private credential and tracking-data snapshots, never runtime inputs.
 
-The bot holds `.tracker.lock` for its lifetime. Never delete this lock while a bot process is running. Clean shutdown lets the current operation finish, saves successful progress, and releases the lock; network timeouts can delay completion. After a crash or power loss, stop all bot processes before deleting a stale lock and restarting. Storage failures stop the bot instead of continuing with unsaved state.
+The bot holds `.tracker.lock` for its lifetime. **Never delete it while a bot process is running.** Clean shutdown finishes the current operation and releases it; network timeouts can delay shutdown. After a crash, stop all bot processes before removing a stale lock. Storage failures stop the bot to avoid continuing with unsaved state.
 
-`tracker.json` is the only active data store. Legacy `games.json`, `state.json`, or migration backups are not read by this version. Keep any rollback backups separate; there is no compatibility mode or automatic import.
+Git tracks source, tests, fixtures, configuration templates, and documentation. Credentials, live data, logs, locks, installed dependencies, and backups are ignored. Git does not replace private data backups.
 
-## Source history
+## Development
 
-The local Git repository tracks source, tests, fixtures, documentation, and the blank `.env.example`. Credentials (`.env` and its variants), tracking data, logs, locks, dependencies, and rollback backups are ignored. Use `git status` and `git diff` to review changes before committing. Git does not back up your tracked games or credentials; keep their separate private backups. No remote repository is configured.
-
-## Design and verification
-
-- `bot.ts`: Discord connection, channel validation, command permissions, and application lifecycle.
-- `tracker.ts`: product management, scheduling, serialized operations, and JSON persistence.
+- `bot.ts`: Discord connection, permissions, commands, and lifecycle.
+- `tracker.ts`: product management, checks, scheduling, and JSON persistence.
 - `pricing.ts`: pure price-drop and returning-sale decisions.
-- `sources.ts`: AllKeyShop requests, embedded-data extraction, and offer eligibility.
+- `sources.ts`: AllKeyShop requests, parsing, and offer eligibility.
 - `notifications.ts`: Discord alert formatting.
 
-One process owns one store, so a database or external queue would add little here. Combining products and price state allows removal to be saved atomically. A small in-process queue prevents commands and scheduled checks from racing; a lifetime lock prevents a second writer. The bot sends alerts directly, avoiding separate webhook credentials and delivery code. There is one startup command and no separate CLI watcher.
+One process owns one combined store. A mutation queue prevents commands and checks from racing; a lifetime lock prevents a second writer. Atomic file replacement keeps products and price state together. Alerts use the bot's existing Discord connection.
 
-See [the architecture review](ARCHITECTURE.md) for the design assessment, changes made, and reasons for retaining these boundaries.
+Run `npm test` for type checking and offline tests, or `npm run typecheck` alone. Tests use temporary stores and mocked Discord/network calls. The two HTML fixtures contain trimmed WoW 60-day and Elden Ring offer data captured on **2026-09-27**, with source URLs in `sources.test.ts`. Tests modify these rows to exercise unsuitable offers; fixture prices are not current quotations. Real Discord setup still needs live verification.
 
-Run `npm test` for type checking and offline tests, or `npm run typecheck` for type checking alone. Tests use captured offer fixtures, mocked network responses, and isolated temporary stores. Live Discord setup still needs verification with your bot and channel.
-
-AllKeyShop's embedded data is not a documented public API. A site change or block may require a parser update; missing or unsuitable prices produce errors rather than fabricated deals. Zero-price placeholders are ignored. A confirmed Discord send followed by a crash before saving can occasionally produce a duplicate alert after restart.
+AllKeyShop's embedded data is undocumented and can change or be blocked. Missing or unsuitable prices produce errors; zero-price placeholders are ignored. A successful Discord send followed by a crash before saving can occasionally cause a duplicate alert after restart.

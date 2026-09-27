@@ -2,8 +2,7 @@
 // Parse that JSON as data; never execute page scripts or use its aggregate SEO price.
 export interface Product {
   url: string;
-  name?: string;
-  id?: string;
+  name: string;
   platform: 'steam' | 'battlenet';
   edition?: string;
 }
@@ -15,7 +14,6 @@ export interface Offer {
   price: number;
   merchant: string;
   coupon?: string;
-  source: string;
 }
 
 interface PrepaidOffer {
@@ -47,7 +45,7 @@ interface SteamOffer {
 interface SourceData {
   currency?: string;
   activationCountry?: { code?: string; geo_presets?: Array<{ id: number }> };
-  product?: { id?: number; amount_label?: string };
+  product?: { id?: number };
   prepaid?: { name?: string };
   merchants?: Record<string, { name?: string }>;
   offers?: PrepaidOffer[];
@@ -129,7 +127,7 @@ function prepaidOffers(data: SourceData): Array<Candidate | null> {
 }
 
 function steamOffers(data: SourceData, product: Product): Candidate[] {
-  if (product.platform && product.platform !== 'steam') throw new Error('This game page supports Steam tracking only.');
+  if (product.platform !== 'steam') throw new Error('This game page supports Steam tracking only.');
   const editionName = (product.edition || 'Standard').trim().toLowerCase();
   const edition = Object.entries(data.editions || {}).find(([, item]) => typeof item?.name === 'string' && item.name.trim().toLowerCase() === editionName)?.[0];
   if (!edition) throw new Error('Selected edition is not listed on this page; check the edition setting.');
@@ -162,10 +160,8 @@ export function parseOffer(html: string, product: Product): Offer {
   const validCandidates = candidates.filter((offer): offer is ValidCandidate => Boolean(offer && offer.price !== null && typeof offer.merchant === 'string' && offer.merchant.trim()));
   validCandidates.sort((a, b) => a.price - b.price);
   if (!validCandidates.length) throw new Error('No matching in-stock EUR offers.');
-  const title = product.name || (prepaid ? `${data.prepaid?.name || 'Prepaid'} ${data.product?.amount_label || ''}`.trim()
-    : new URL(url).pathname.split('/').filter(Boolean).at(-1)!.replace(/^buy-/, '').replace(/-(?:cd-key-|key-)?compare-prices$/, '').replaceAll('-', ' '));
-  return { title, url, ...(!prepaid ? { edition: product.edition?.trim() || 'Standard' } : {}),
-    ...validCandidates[0], source: 'AllKeyShop' };
+  return { title: product.name, url, ...(!prepaid ? { edition: product.edition?.trim() || 'Standard' } : {}),
+    ...validCandidates[0] };
 }
 
 export async function fetchOffer(product: Product, { request = fetch }: { request?: typeof fetch } = {}): Promise<Offer> {

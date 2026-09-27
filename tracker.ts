@@ -5,8 +5,8 @@ import { setTimeout as sleep } from 'node:timers/promises';
 import { fetchOffer, normalizeProductUrl, type Offer, type Product } from './sources.ts';
 import { evaluate, type Decision, type PriceState, type PricingPolicy } from './pricing.ts';
 
-export interface TrackedGame extends Product { id: string; name: string; state?: PriceState; }
-export interface TrackerData { version: 1; settings: PricingPolicy; games: TrackedGame[]; }
+interface TrackedGame extends Product { id: string; state?: PriceState; }
+interface TrackerData { version: 1; settings: PricingPolicy; games: TrackedGame[]; }
 interface CheckOptions { dryRun?: boolean; signal?: AbortSignal; log?: (text: string) => void; }
 export interface Tracker {
   listGames(): Promise<TrackedGame[]>;
@@ -20,7 +20,6 @@ interface TrackerOptions {
   directory: string;
   send: (offer: Offer, decision: Decision) => Promise<void>;
   getOffer?: (product: Product) => Promise<Offer>;
-  now?: () => number;
   log?: (text: string) => void;
   onFatal?: (error: Error) => void;
 }
@@ -68,7 +67,7 @@ export function validateData(value: unknown): TrackerData {
   return value as unknown as TrackerData;
 }
 
-export async function openTracker({ directory, send, getOffer = fetchOffer, now = Date.now, log = console.log, onFatal }: TrackerOptions): Promise<Tracker> {
+export async function openTracker({ directory, send, getOffer = fetchOffer, log = console.log, onFatal }: TrackerOptions): Promise<Tracker> {
   const root = resolve(directory);
   await mkdir(root, { recursive: true });
   const path = resolve(root, 'tracker.json');
@@ -141,7 +140,7 @@ export async function openTracker({ directory, send, getOffer = fetchOffer, now 
       if (platform === 'battlenet' && editionKey(edition) !== 'standard') throw new Error('Edition selection is only supported for Steam games.');
       const slug = new URL(url).pathname.split('/').find(part => part.endsWith('compare-prices'))!;
       const name = inputName?.trim() || slug.replace(/^buy-/, '').replace(/-(?:cd-key-|key-)?compare-prices$/, '').replaceAll('-', ' ');
-      const id = createHash('sha256').update(editionKey(edition) === 'standard' ? url : identity({ url, platform, edition })).digest('hex').slice(0, 12);
+      const id = createHash('sha256').update(editionKey(edition) === 'standard' ? url : identity({ url, name, platform, edition })).digest('hex').slice(0, 12);
       const game: TrackedGame = { id, name, url, platform, ...(editionKey(edition) === 'standard' ? {} : { edition }) };
       return enqueue(async () => {
         if (data.games.some(existing => identity(existing) === identity(game))) return 'Already following this product.';
@@ -167,7 +166,7 @@ export async function openTracker({ directory, send, getOffer = fetchOffer, now 
           let offer: Offer, decision: Decision;
           try {
             offer = await getOffer(structuredClone(game));
-            decision = evaluate(game.state, offer.price, data.settings, now());
+            decision = evaluate(game.state, offer.price, data.settings);
             if (decision.alert && !dryRun) await send(offer, decision);
           } catch (error) {
             report(`${label}: ${errorMessage(error)} Previous state kept.`);
@@ -175,14 +174,14 @@ export async function openTracker({ directory, send, getOffer = fetchOffer, now 
             continue;
           }
           if (!dryRun) await commit({ ...data, games: data.games.map(existing => existing.id === game.id ? { ...game, state: decision.next } : existing) });
-          report(`${label}: ${euro(offer.price)}${offer.merchant ? ` at ${offer.merchant}` : ''}${offer.coupon ? ` (coupon ${offer.coupon})` : ''} — ${decision.reason}${dryRun ? ' [preview: nothing saved or sent]' : ''}`);
+          report(`${label}: ${euro(offer.price)} at ${offer.merchant}${offer.coupon ? ` (coupon ${offer.coupon})` : ''} — ${decision.reason}${dryRun ? ' [preview: nothing saved or sent]' : ''}`);
         }
         return { failures };
       });
     },
     async watchPrices(signal) {
       while (!signal.aborted) {
-        log(`Checking prices at ${new Date(now()).toISOString()}`);
+        log(`Checking prices at ${new Date().toISOString()}`);
         await tracker.runCheck({ signal });
         if (signal.aborted) break;
         try { await sleep(data.settings.checkIntervalMinutes * 60_000, undefined, { signal }); }
