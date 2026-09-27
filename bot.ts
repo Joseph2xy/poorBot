@@ -16,7 +16,7 @@ export const gamesCommand = new SlashCommandBuilder()
     .addStringOption(option => option.setName('url').setDescription('English AllKeyShop comparison-page URL').setRequired(true).setMaxLength(500))
     .addStringOption(option => option.setName('name').setDescription('Display name for the game').setMaxLength(200))
     .addStringOption(option => option.setName('edition').setDescription('Steam edition, such as Standard or Deluxe').setMaxLength(100)))
-  .addSubcommand(command => command.setName('list').setDescription('List followed games and their IDs'))
+  .addSubcommand(command => command.setName('list').setDescription('Show followed games, saved prices, and last successful checks'))
   .addSubcommand(command => command.setName('remove').setDescription('Stop following a game')
     .addStringOption(option => option.setName('id').setDescription('Product ID from /games list').setRequired(true).setMaxLength(100)))
   .addSubcommand(command => command.setName('check').setDescription('Check prices now, save baselines, and send qualifying alerts')
@@ -75,7 +75,13 @@ export function createCommandHandler(guildId: string, signal: AbortSignal, opera
             break;
           case 'list': {
             const games = await operations.listGames();
-            result = games.length ? games.map(game => `${game.name} (${game.edition || 'Standard'})\nID: ${game.id}\n${game.url}`).join('\n\n')
+            result = games.length ? games.map(game => {
+              const title = game.platform === 'steam' ? `${game.name} (${game.edition || 'Standard'})` : game.name;
+              const status = game.state
+                ? `Latest saved price: €${(game.state.current / 100).toFixed(2)}\nAlert reference price: €${(game.state.reference / 100).toFixed(2)}\nLast successful check: ${new Date(game.state.checkedAt).toUTCString()}`
+                : 'Awaiting first successful check.';
+              return `${title}\nID: ${game.id}\n${status}\n${game.url}`;
+            }).join('\n\n')
               : 'No games followed yet. Use /games add to follow one.';
             break;
           }

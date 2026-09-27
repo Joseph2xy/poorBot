@@ -12,6 +12,7 @@ type Operations = NonNullable<Parameters<typeof createCommandHandler>[2]>;
 const guildId = '123456789012345678';
 const product = { id: 'elden', name: 'Elden Ring', platform: 'steam' as const,
   url: 'https://www.allkeyshop.com/blog/buy-elden-ring-cd-key-compare-prices/' };
+const savedState = { current: 2381, reference: 2500, checkedAt: Date.UTC(2026, 8, 27, 17, 0) };
 function operations(overrides: Partial<Operations> = {}): Operations {
   const unexpected = async (): Promise<never> => { assert.fail('Unexpected tracker operation'); };
   return { addGame: unexpected, listGames: unexpected, removeGame: unexpected, runCheck: unexpected, ...overrides };
@@ -80,12 +81,12 @@ test('add forwards omitted optional name and edition as undefined', async () => 
 });
 
 test('list returns IDs and editions, handles empty lists, and attaches oversized results', async () => {
-  for (const games of [[], [product], Array.from({ length: 30 }, (_, index) => ({ ...product, id: `game-${index}`, edition: 'Deluxe' }))]) {
+  for (const games of [[], [product], Array.from({ length: 30 }, (_, index) => ({ ...product, id: `game-${index}`, edition: 'Deluxe', state: savedState }))]) {
     const input = interaction('list');
     await createCommandHandler(guildId, new AbortController().signal, operations({ listGames: async () => games }))(input.fake);
     const reply = input.edits[0];
     if (!games.length) assert.match(String(reply.content), /No games followed/);
-    else if (games.length === 1) assert.equal(reply.content, `${product.name} (Standard)\nID: elden\n${product.url}`);
+    else if (games.length === 1) assert.equal(reply.content, `${product.name} (Standard)\nID: elden\nAwaiting first successful check.\n${product.url}`);
     else {
       assert.equal(reply.content, 'Full results are attached.');
       const file = reply.files?.[0];
@@ -96,9 +97,28 @@ test('list returns IDs and editions, handles empty lists, and attaches oversized
       assert.ok(contents.length > 2000);
       assert.match(contents, /Elden Ring \(Deluxe\)/);
       assert.match(contents, /ID: game-29/);
+      assert.equal(contents.match(/Latest saved price: €23\.81/g)?.length, 30);
+      assert.equal(contents.match(/Alert reference price: €25\.00/g)?.length, 30);
+      assert.equal(contents.match(/Last successful check: Sun, 27 Sep 2026 17:00:00 GMT/g)?.length, 30);
     }
     assert.deepEqual(reply.allowedMentions, { parse: [] });
   }
+});
+
+test('list displays each saved price and check time without inventing an edition for WoW', async () => {
+  const wowUrl = 'https://www.allkeyshop.com/blog/prepaids/buy-world-of-warcraft-subscription-60-day-france-compare-prices/i-co/';
+  const input = interaction('list');
+  await createCommandHandler(guildId, new AbortController().signal, operations({ listGames: async () => [
+    { ...product, state: savedState },
+    { ...product, id: 'wow', name: 'WoW 60 days', platform: 'battlenet', url: wowUrl,
+      state: { current: 2400, reference: 2400, checkedAt: Date.UTC(2026, 8, 26, 16, 30) } },
+  ] }))(input.fake);
+  assert.equal(input.edits[0].content,
+    'Elden Ring (Standard)\nID: elden\nLatest saved price: €23.81\nAlert reference price: €25.00\n'
+    + `Last successful check: Sun, 27 Sep 2026 17:00:00 GMT\n${product.url}\n\n`
+    + 'WoW 60 days\nID: wow\nLatest saved price: €24.00\nAlert reference price: €24.00\n'
+    + `Last successful check: Sat, 26 Sep 2026 16:30:00 GMT\n${wowUrl}`);
+  assert.deepEqual(input.events, ['defer', 'edit']);
 });
 
 test('remove acknowledges before forwarding the selected ID', async () => {

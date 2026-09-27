@@ -21,7 +21,7 @@ Commands work in the destination channel's server for members with **Manage Serv
 | Command | Result |
 | --- | --- |
 | `/games add url:<URL> name:<optional name> edition:<optional edition>` | Follows a product. Adding it does not contact the price source. |
-| `/games list` | Lists products, editions, and IDs. |
+| `/games list` | Lists products, IDs, latest saved prices, alert reference prices, and last successful checks. |
 | `/games remove id:<ID>` | Removes the product and its saved price history. |
 | `/games check` | Checks now, saves observations, and sends qualifying alerts. |
 | `/games check dry-run:true` | Previews offers without saving or sending alerts. |
@@ -29,6 +29,8 @@ Commands work in the destination channel's server for members with **Manage Serv
 Use English AllKeyShop comparison-page links, such as `https://www.allkeyshop.com/blog/buy-elden-ring-cd-key-compare-prices/`. Steam store URLs and individual seller links are not supported. Steam defaults to Standard edition; use the source's edition label, such as Deluxe, to follow another edition. Different editions are tracked separately. Supported WoW game-time links are recognized automatically.
 
 The first successful regular check establishes a baseline quietly. Use a dry run to verify eligible offers after adding a product. Add, remove, and check run one at a time; `/games list` remains available while they run and shows the last saved product list. Steam alerts and check results identify the tracked edition. Long results arrive as a text attachment.
+
+`/games list` reads saved observations without requesting new prices. Products without a baseline show **Awaiting first successful check**. Check times are shown in GMT (UTC), including in text attachments. The alert reference price is the price used to decide whether a reduction qualifies; it can differ from the latest saved price. Failed checks and dry runs do not update this status, so an old check time means no newer successful check has been saved.
 
 ## How alerts work
 
@@ -60,6 +62,10 @@ Stop the bot before changing settings. Check intervals must be between 1 and 35,
 The bot holds `.tracker.lock` for its lifetime. Never delete this lock while a bot process is running. Clean shutdown lets the current operation finish, saves successful progress, and releases the lock; network timeouts can delay completion. After a crash or power loss, stop all bot processes before deleting a stale lock and restarting. Storage failures stop the bot instead of continuing with unsaved state.
 
 `tracker.json` is the only active data store. Legacy `games.json`, `state.json`, or migration backups are not read by this version. Keep any rollback backups separate; there is no compatibility mode or automatic import.
+
+## Source history
+
+The local Git repository tracks source, tests, fixtures, documentation, and the blank `.env.example`. Credentials (`.env` and its variants), tracking data, logs, locks, dependencies, and rollback backups are ignored. Use `git status` and `git diff` to review changes before committing. Git does not back up your tracked games or credentials; keep their separate private backups. No remote repository is configured.
 
 ## Design and verification
 
