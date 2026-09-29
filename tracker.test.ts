@@ -103,6 +103,45 @@ test('failed delivery preserves baseline and a successful retry alerts only once
   assert.equal((await read()).games[0].state?.reference, 2000);
 });
 
+test('every successful check sends an update or discount alert, while previews send neither', async t => {
+  let price = 2500;
+  const updates: number[] = [], alerts: number[] = [];
+  const { tracker } = await setup(t, {
+    getOffer: async () => offer(price),
+    sendUpdate: async offer => { updates.push(offer.price); },
+    send: async offer => { alerts.push(offer.price); },
+  });
+  await tracker.addGame(url);
+  await tracker.runCheck();
+  await tracker.runCheck();
+  price = 2400;
+  await tracker.runCheck();
+  price = 2000;
+  await tracker.runCheck({ dryRun: true });
+  assert.deepEqual(alerts, []);
+  await tracker.runCheck();
+  await tracker.runCheck();
+  await tracker.runCheck({ dryRun: true });
+  assert.deepEqual(updates, [2500, 2500, 2400, 2000]);
+  assert.deepEqual(alerts, [2000]);
+});
+
+test('failed routine update preserves state and is retried on the next check', async t => {
+  let fail = true, sends = 0;
+  const { tracker, read } = await setup(t, { sendUpdate: async () => {
+    sends++;
+    if (fail) throw new Error('offline');
+  } });
+  await tracker.addGame(url);
+  const before = await read();
+  assert.equal((await tracker.runCheck()).failures, 1);
+  assert.deepEqual(await read(), before);
+  fail = false;
+  assert.equal((await tracker.runCheck()).failures, 0);
+  assert.equal((await read()).games[0].state?.current, 2500);
+  assert.equal(sends, 2);
+});
+
 test('unsupported prepaid products are rejected on add without fetching or changing the store', async t => {
   const { tracker, read } = await setup(t, { getOffer: async () => assert.fail('Add fetched prices') });
   await tracker.addGame(wowUrl, 'WoW 60 days');

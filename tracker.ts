@@ -19,6 +19,7 @@ export interface Tracker {
 interface TrackerOptions {
   directory: string;
   send: (offer: Offer, decision: Decision) => Promise<void>;
+  sendUpdate?: (offer: Offer) => Promise<void>;
   getOffer?: (product: Product) => Promise<Offer>;
   log?: (text: string) => void;
   onFatal?: (error: Error) => void;
@@ -67,7 +68,7 @@ export function validateData(value: unknown): TrackerData {
   return value as unknown as TrackerData;
 }
 
-export async function openTracker({ directory, send, getOffer = fetchOffer, log = console.log, onFatal }: TrackerOptions): Promise<Tracker> {
+export async function openTracker({ directory, send, sendUpdate, getOffer = fetchOffer, log = console.log, onFatal }: TrackerOptions): Promise<Tracker> {
   const root = resolve(directory);
   await mkdir(root, { recursive: true });
   const path = resolve(root, 'tracker.json');
@@ -168,6 +169,7 @@ export async function openTracker({ directory, send, getOffer = fetchOffer, log 
             offer = await getOffer(structuredClone(game));
             decision = evaluate(game.state, offer.price, data.settings);
             if (decision.alert && !dryRun) await send(offer, decision);
+            else if (!dryRun) await sendUpdate?.(offer);
           } catch (error) {
             report(`${label}: ${errorMessage(error)} Previous state kept.`);
             failures++;

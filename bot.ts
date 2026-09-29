@@ -6,7 +6,7 @@ import {
   type InteractionReplyOptions, type InteractionEditReplyOptions, type TextChannel, type NewsChannel,
 } from 'discord.js';
 import { openTracker, type Tracker } from './tracker.ts';
-import { priceAlert } from './notifications.ts';
+import { priceAlert, priceUpdate } from './notifications.ts';
 
 const gamesCommand = new SlashCommandBuilder()
   .setName('games')
@@ -152,6 +152,10 @@ export async function main(): Promise<void> {
         try { await channel.send(priceAlert(offer, decision)); }
         catch { throw new Error('Discord alert delivery failed; the previous baseline is kept for the next check.'); }
       },
+      sendUpdate: async offer => {
+        try { await channel.send(priceUpdate(offer)); }
+        catch { throw new Error('Discord price update delivery failed; the previous baseline is kept for the next check.'); }
+      },
       onFatal: error => { fatalError = error; stop(); },
     });
     const ready = once(client, Events.ClientReady, { signal: AbortSignal.any([shutdown.signal, AbortSignal.timeout(30_000)]) });
@@ -182,6 +186,8 @@ export async function main(): Promise<void> {
       active.add(task);
       void task.finally(() => active.delete(task));
     });
+    try { await channel.send('🟢 Price tracker is online. Checking tracked games now; automatic checks are enabled.'); }
+    catch { console.error('Could not send the startup message; price tracking will continue.'); }
     await tracker.watchPrices(shutdown.signal);
     if (fatalError) throw fatalError;
   } finally {

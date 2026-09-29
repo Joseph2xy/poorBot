@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { priceAlert } from './notifications.ts';
+import { priceAlert, priceUpdate } from './notifications.ts';
 import type { Decision } from './pricing.ts';
 import type { Offer } from './sources.ts';
 
@@ -30,10 +30,24 @@ test('price alert includes exact EUR totals, rounded percentage, and the compari
     'Prices via AllKeyShop • Advertised EUR price; confirm the final total at checkout.');
 });
 
-test('price alert disables mentions and omits absent edition and coupon fields', () => {
+test('price alert mentions everyone and omits absent edition and coupon fields', () => {
   const value = { ...offer, title: '@everyone', edition: undefined, coupon: undefined };
-  assert.deepEqual(priceAlert(value, decision).allowedMentions, { parse: [] });
+  assert.equal(priceAlert(value, decision).content, '@everyone');
+  assert.deepEqual(priceAlert(value, decision).allowedMentions, { parse: ['everyone'] });
   assert.deepEqual(embedFor(value).fields, [{ name: 'Store', value: 'Example Store', inline: true }]);
+});
+
+test('routine price update shows the current price without pinging anyone', () => {
+  const payload = priceUpdate(offer);
+  assert.equal(payload.content, undefined);
+  assert.deepEqual(payload.allowedMentions, { parse: [] });
+  const raw = payload.embeds![0];
+  const embed = 'toJSON' in raw ? raw.toJSON() : raw;
+  assert.equal(embed.title, 'Elden Ring — price check');
+  assert.equal(embed.description, 'Current price: **€19.99**');
+  assert.equal(embed.url, offer.url);
+  assert.deepEqual(embed.fields, embedFor().fields);
+  assert.ok(Number.isFinite(Date.parse(embed.timestamp!)));
 });
 
 test('long alert text remains usable within Discord title and field limits', () => {
