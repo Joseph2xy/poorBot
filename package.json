@@ -1,8 +1,14 @@
 {
   "name": "game-price-discord-notifier",
+  "description": "Single-server Discord game-price tracker with cumulative price-drop alerts and offline demos",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Joseph2xy/game-price-discord-notifier.git"
+  },
   "private": true,
   "type": "module",
   "scripts": {
+    "demo": "node demo.ts",
     "start": "node --env-file-if-exists=.env bot.ts",
     "typecheck": "tsc --noEmit",
     "test": "npm run typecheck && node --test *.test.ts"
