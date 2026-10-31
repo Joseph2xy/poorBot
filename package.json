@@ -1,5 +1,10 @@
 {
   "name": "game-price-discord-notifier",
+  "description": "Single-server Discord game-price tracker with cumulative price-drop alerts and offline demos",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Joseph2xy/game-price-discord-notifier.git"
+  },
   "private": true,
   "type": "module",
   "scripts": {

@@ -2,7 +2,7 @@
 
 A small TypeScript bot that brings game-price tracking into a Discord channel. Follow a game with a slash command, get hourly price updates, and receive an `@everyone` mention when a reduction is large enough to matter.
 
-Rather than alerting on every fluctuation, it compares prices against a saved reference: small drops accumulate, repeated deals stay quiet, and returning sales can qualify again after a sustained recovery. Offer filtering excludes unsuitable platforms, editions, regions, accounts, gifts, and cashback.
+Rather than mentioning everyone on every fluctuation, it compares prices against a saved reference: small drops accumulate, repeated deals produce updates without another mention, and returning sales can qualify again after a sustained recovery. Offer filtering excludes unsuitable platforms, editions, regions, accounts, gifts, and cashback.
 
 **Stack:** Node.js native TypeScript execution · discord.js · JSON file persistence · Node test runner. No database, build step, or privileged Discord intents.
 
@@ -124,5 +124,7 @@ Git tracks source, tests, fixtures, configuration templates, and documentation. 
 One process owns one combined store. A mutation queue prevents commands and checks from racing; a lifetime lock prevents a second writer. Atomic file replacement keeps products and price state together. Alerts use the bot's existing Discord connection.
 
 Run `npm test` for type checking and offline tests, or `npm run typecheck` alone. Tests use temporary stores and mocked Discord/network calls. The two HTML fixtures contain trimmed WoW 60-day and Elden Ring offer data captured on **2026-09-27**, with source URLs in `sources.test.ts`. Tests modify these rows to exercise unsuitable offers; fixture prices are not current quotations. Real Discord setup still needs live verification.
+
+Fixture provenance is recorded in [fixtures/README.md](fixtures/README.md). Dependency packages retain their own license notices; this repository does not currently declare a source-code license.
 
 AllKeyShop's embedded data is undocumented and can change or be blocked. Missing or unsuitable prices produce errors; zero-price placeholders are ignored. A successful Discord send followed by a crash before saving can occasionally cause a duplicate alert after restart.
