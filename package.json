@@ -3,6 +3,7 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "demo": "node demo.ts",
     "start": "node --env-file-if-exists=.env bot.ts",
     "typecheck": "tsc --noEmit",
     "test": "npm run typecheck && node --test *.test.ts"
