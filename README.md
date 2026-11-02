@@ -1,7 +1,6 @@
 # PoorBot
 
-A Discord bot that watches game prices for a friend and me, so we don't have to
-keep checking manually.
+A Discord bot that tracks game prices and sends alerts when they drop.
 
 Follow games with slash commands and get hourly price updates in Discord. The bot
 only pings everyone when a drop is large enough to meet the alert rules, rather
