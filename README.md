@@ -1,4 +1,6 @@
-# Game price alerts for Discord
+# PoorBot
+
+Game-price alerts for Discord. For games worth playing at prices worth waiting for.
 
 A small TypeScript bot that brings game-price tracking into a Discord channel. Follow a game with a slash command, get hourly price updates, and receive an `@everyone` mention when a reduction is large enough to matter.
 
@@ -128,3 +130,7 @@ Run `npm test` for type checking and offline tests, or `npm run typecheck` alone
 Fixture provenance is recorded in [fixtures/README.md](fixtures/README.md). Dependency packages retain their own license notices; this repository does not currently declare a source-code license.
 
 AllKeyShop's embedded data is undocumented and can change or be blocked. Missing or unsuitable prices produce errors; zero-price placeholders are ignored. A successful Discord send followed by a crash before saving can occasionally cause a duplicate alert after restart.
+
+## License
+
+Original project code is available under the [MIT License](LICENSE). Third-party dependencies, media and external data retain their respective rights and notices. Setup instructions and public-release polish are still being improved.

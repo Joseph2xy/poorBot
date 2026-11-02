@@ -1,9 +1,9 @@
 {
-  "name": "game-price-discord-notifier",
-  "description": "Single-server Discord game-price tracker with cumulative price-drop alerts and offline demos",
+  "name": "poorbot",
+  "description": "PoorBot: Discord game-price tracking with cumulative price-drop alerts and an offline demo",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/Joseph2xy/game-price-discord-notifier.git"
+    "url": "git+https://github.com/Joseph2xy/poorbot.git"
   },
   "private": true,
   "type": "module",
@@ -22,5 +22,6 @@
   },
   "dependencies": {
     "discord.js": "14.27.0"
-  }
+  },
+  "license": "MIT"
 }
