@@ -1,12 +1,14 @@
 # PoorBot
 
-Game-price alerts for Discord. For games worth playing at prices worth waiting for.
+A Discord bot that watches game prices for a friend and me, so we don't have to
+keep checking manually.
 
-A small TypeScript bot that brings game-price tracking into a Discord channel. Follow a game with a slash command, get hourly price updates, and receive an `@everyone` mention when a reduction is large enough to matter.
+Follow games with slash commands and get hourly price updates in Discord. The bot
+only pings everyone when a drop is large enough to meet the alert rules, rather
+than on every price change.
 
-Rather than mentioning everyone on every fluctuation, it compares prices against a saved reference: small drops accumulate, repeated deals produce updates without another mention, and returning sales can qualify again after a sustained recovery. Offer filtering excludes unsuitable platforms, editions, regions, accounts, gifts, and cashback.
-
-**Stack:** Node.js native TypeScript execution · discord.js · JSON file persistence · Node test runner. No database, build step, or privileged Discord intents.
+**Built with:** TypeScript, Node.js and discord.js. Uses a JSON file for storage
+and includes an offline demo.
 
 ## Try it without Discord
 
@@ -22,7 +24,7 @@ An alert looks like this (illustrative text, **not a live offer or Discord scree
 
 > @everyone
 >
-> **Example game — price dropped**
+> **Example game: price dropped**
 >
 > €25.00 → **€19.99**
 >
@@ -127,7 +129,7 @@ One process owns one combined store. A mutation queue prevents commands and chec
 
 Run `npm test` for type checking and offline tests, or `npm run typecheck` alone. Tests use temporary stores and mocked Discord/network calls. The two HTML fixtures contain trimmed WoW 60-day and Elden Ring offer data captured on **2026-09-27**, with source URLs in `sources.test.ts`. Tests modify these rows to exercise unsuitable offers; fixture prices are not current quotations. Real Discord setup still needs live verification.
 
-Fixture provenance is recorded in [fixtures/README.md](fixtures/README.md). Dependency packages retain their own license notices; this repository does not currently declare a source-code license.
+Fixture provenance is recorded in [fixtures/README.md](fixtures/README.md). Dependency packages retain their own license notices.
 
 AllKeyShop's embedded data is undocumented and can change or be blocked. Missing or unsuitable prices produce errors; zero-price placeholders are ignored. A successful Discord send followed by a crash before saving can occasionally cause a duplicate alert after restart.
 
